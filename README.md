@@ -10,7 +10,7 @@
 | Phase 0 | 侦察:确认位数、Unity/Mono 版本、Managed 目录清单、目标作弊列表 | ✅(x64 / Mono 后端确认) |
 | Phase 1 | 静态分析:dnSpy 读 Assembly-CSharp.dll,定位血量字段与受伤方法 | ✅(见 `cheats/01-无伤.md`) |
 | Phase 2 | 手动验证:Cheat Engine 复刻无敌效果 → 无伤 patch 验证通过、无副作用 | ✅ |
-| Phase 3 | 自动化:injector.exe(C++ 注入)+ trainer.dll(mono API 写字段/patch 方法) | ✅ 三个作弊项落地并实测:**01-无伤(F3)/ 02-锁血(F4)/ 03-金币+100(F5)**;后续按 `cheats/NN-*.md` 迭代 |
+| Phase 3 | 自动化:injector.exe(C++ 注入)+ trainer.dll(mono API 写字段/patch 方法) | ✅ 三个作弊项落地并实测:**01-无伤(F3)/ 02-锁血(F4)/ 03-增加金币(F5)**;后续按 `cheats/NN-*.md` 迭代 |
 
 ## 目录结构
 
@@ -18,10 +18,11 @@
 docs/     分析指南与产出笔记(static-analysis-guide.md = Phase 1 操作指南)
           前后端对接协议(docs/architecture-frontend.md,外部管道前端)
           外置前端(方案 A)设计(docs/architecture-frontend-standalone.md,正式 UI)
-          进程内 UI 设计(docs/architecture-inprocess-ui.md,B1 过渡形态 + TrainerApi 契约)
+          进程内 UI 历史记录(docs/architecture-inprocess-ui.md,B1 已清理)
 cheats/   每条作弊的"说明书"(以 TEMPLATE.md 为模板)
+frontend/ C++ 外置前端(方案 A;Win32/GDI,当前为占位像素布局)
 injector/ C++ 注入器(Phase 3)
-trainer/  C++ trainer DLL 核心(Phase 3;含管道命令服务;进程内 UI 为过渡,B1 清理见外置前端设计文档)
+trainer/  C++ trainer DLL 核心(Phase 3;含管道命令服务;B1 已清理)
 tools/    Python 辅助脚本(pymem 原型 / 地址验证,Phase 2 备用)
 ```
 

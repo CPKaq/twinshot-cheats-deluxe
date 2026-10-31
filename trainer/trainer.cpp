@@ -1,13 +1,11 @@
 // trainer.cpp —— Twin Shot Deluxe 内存修改器核心(注入式 DLL)
 //
-// 架构(多作弊框架 + 双前端通道):
+// 架构(多作弊框架 + 外置管道前端):
 //   1. 等待 mono-2.0-bdwgc.dll 加载,动态绑定其导出函数
 //   2. 等 Assembly-CSharp 加载,拿到 image
 //   3. 对每个作弊项(Cheat)循环尝试 locate() 直到成功(类/字段可能要等游戏进度)
 //   4. 热键循环:每个作弊独立开关;退出时全部还原
-//   5. 进程内 UI(B1):独立 Win32 窗口,Insert 显隐,直接调 TrainerApi
-//   6. 外部管道前端(A):\\.\pipe\twinshot-trainer,JSON Lines 协议
-//   两条前端通道共用 TrainerApi(trainer_api.h)+ 命令队列;
+//   5. 外部管道前端(A):\\.\pipe\twinshot-trainer,JSON Lines 协议
 //   mono 调用只发生在 trainer 线程(硬约束)。
 //
 // 添加新作弊(三步,详见 docs/trainer-framework.md):
@@ -22,12 +20,10 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "trainer_api.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <cstdarg>
-#include <cwchar>
 
 // ---------------------------------------------------------------- 日志 ------
 static FILE* g_log = nullptr;
@@ -490,7 +486,7 @@ static void Lock_Revert(Cheat&) {
     memset(g_lock.snaps, 0, sizeof(g_lock.snaps));       // 关闭即恢复自然扣血
 }
 
-// ---- 作弊 03:金币+100(反射调用 SaveData.GetCoins / SetCoins)------------
+// ---- 作弊 03:增加金币(反射调用 SaveData.GetCoins / SetCoins)------------
 // 数据链(经 dnSpy 确认,见 cheats/03-修改金币.md):
 //   金币无专属字段,是 SaveData.Backing 键值存储的 "coins" 条目;
 //   UI 读 GetCoins(显示层缓存,面板 Show 时刷新),消费走 SetCoins(自带 Save() 持久化)。
@@ -541,7 +537,7 @@ static void Coins_Action(Cheat& c) {
 static Cheat kCheats[] = {
     { "lock",  "锁血",     VK_F4, true,  Lock_Locate, Lock_Apply, Lock_Revert, Lock_Tick, &g_lock },
     { "god",   "无伤",     VK_F3, true,  God_Locate, God_Apply, God_Revert, nullptr, &g_god },
-    { "coins", "金币+100", VK_F5, false, Coins_Locate, nullptr, nullptr, nullptr, &g_coins, Coins_Action },
+    { "coins", "增加金币", VK_F5, false, Coins_Locate, nullptr, nullptr, nullptr, &g_coins, Coins_Action },
 };
 static const size_t kCheatsCount = sizeof(kCheats) / sizeof(kCheats[0]);
 
@@ -660,34 +656,6 @@ static void IpcPushState(const Cheat& c, bool ok, const char* err) {
     else
         IpcPushEvent("{\"ev\":\"state\",\"id\":\"%s\",\"ok\":false,\"err\":\"%s\"}",
                      c.id, err ? err : "error");
-}
-
-// ------------------------------------------------- TrainerApi(正式解耦层)--
-// 进程内 UI(B1)与外部管道前端共用的语义层:入队异步执行;快照线程安全。
-// 见 trainer_api.h 与 docs/architecture-inprocess-ui.md。
-bool TrainerApi_GetSnapshot(TrainerCheatInfo* out, int max, int* outCount) {
-    if (!out || !outCount || max <= 0) return false;
-    EnterCriticalSection(&g_ipcCs);
-    int n = 0;
-    for (size_t i = 0; i < kCheatsCount && n < max; ++i) {
-        const Cheat& c = kCheats[i];
-        out[n].id     = c.id;
-        out[n].name   = c.title;
-        out[n].type   = c.action ? "action" : "toggle";
-        out[n].on     = c.on;
-        out[n].ready  = c.ready;
-        out[n].hotkey = c.hotkey;
-        ++n;
-    }
-    LeaveCriticalSection(&g_ipcCs);
-    *outCount = n;
-    return true;
-}
-void TrainerApi_Set(const char* id, bool on) {
-    IpcEnqueueCmd(PipeCmd::SET, id, on, 0);
-}
-void TrainerApi_Act(const char* id, int arg) {
-    IpcEnqueueCmd(PipeCmd::ACT, id, false, arg);
 }
 
 // Worker 每轮消费命令队列:此处在 trainer 线程,可安全调 mono
@@ -899,163 +867,14 @@ static void Worker() {
 
 static DWORD WINAPI WorkerEntry(LPVOID) { Worker(); return 0; }
 
-// ------------------------------------------------- 进程内 UI(B1)----------
-// 独立 Win32 顶层窗口(不 hook 游戏渲染),Insert 显隐,关闭按钮 = 隐藏。
-// UI 线程只允许调 TrainerApi(快照/入队),绝不直接碰 mono ——
-// 与管道前端遵守同一线程契约(命令由 trainer 线程异步执行)。
-// 风险提示:UI 崩溃即游戏进程崩溃,故 UI 侧代码保持极简、零外部依赖。
-static HMODULE g_hSelf = nullptr;                      // DllMain 保存(UI 线程用)
-
-static HWND g_uiCtrl[TRAINER_API_MAX_CHEATS];          // 每作弊一行:复选框/按钮
-static TrainerCheatInfo g_uiMap[TRAINER_API_MAX_CHEATS];
-static int g_uiCount = 0;
-
-#define UI_EDIT_ID   99                                // 数值输入框(动作参数)
-#define UI_CTRL_BASE 1000                              // 控件 ID = UI_CTRL_BASE + i
-#define UI_TIMER_ID  1
-
-static void UiUtf8ToWide(const char* s, wchar_t* out, size_t outChars) {
-    if (MultiByteToWideChar(CP_UTF8, 0, s, -1, out, (int)outChars) <= 0 && outChars)
-        out[0] = 0;
-}
-
-static BOOL CALLBACK UiSetFont(HWND child, LPARAM font) {
-    SendMessageW(child, WM_SETFONT, (WPARAM)font, TRUE);
-    return TRUE;
-}
-
-static void UiBuildControls(HWND h) {
-    // 客户区:每作弊一行 34px,底部一行动作数值输入;宽 250
-    RECT rc = {0, 0, 250, 10 + g_uiCount * 34 + 48};
-    AdjustWindowRect(&rc, WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, FALSE);
-    SetWindowPos(h, nullptr, 0, 0, rc.right - rc.left, rc.bottom - rc.top,
-                 SWP_NOMOVE | SWP_NOZORDER);
-
-    wchar_t wlabel[160];
-    for (int i = 0; i < g_uiCount; ++i) {
-        const TrainerCheatInfo& ci = g_uiMap[i];
-        int y = 10 + i * 34;
-        char label[128];
-        snprintf(label, sizeof(label), "%s [%s]", ci.name, HotkeyName(ci.hotkey));
-        UiUtf8ToWide(label, wlabel, 160);
-        CreateWindowW(L"STATIC", wlabel, WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP,
-                      10, y + 5, 105, 20, h, nullptr, g_hSelf, nullptr);
-        bool toggle = (strcmp(ci.type, "toggle") == 0);
-        g_uiCtrl[i] = CreateWindowW(L"BUTTON", toggle ? L"启用" : L"执行",
-            WS_CHILD | WS_VISIBLE | (toggle ? BS_AUTOCHECKBOX : BS_PUSHBUTTON),
-            120, y, 110, 24, h, (HMENU)(INT_PTR)(UI_CTRL_BASE + i), g_hSelf, nullptr);
-    }
-    int editY = 10 + g_uiCount * 34 + 4;
-    CreateWindowW(L"STATIC", L"动作数值:", WS_CHILD | WS_VISIBLE,
-                  10, editY + 5, 60, 20, h, nullptr, g_hSelf, nullptr);
-    CreateWindowW(L"EDIT", L"100",
-                  WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
-                  75, editY, 60, 24, h, (HMENU)(INT_PTR)UI_EDIT_ID, g_hSelf, nullptr);
-    CreateWindowW(L"STATIC", L"Insert 显/隐", WS_CHILD | WS_VISIBLE,
-                  150, editY + 5, 90, 20, h, nullptr, g_hSelf, nullptr);
-    EnumChildWindows(h, UiSetFont, (LPARAM)GetStockObject(DEFAULT_GUI_FONT));
-}
-
-static LRESULT CALLBACK UiWndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
-    switch (msg) {
-    case WM_CREATE: {
-        // 快照建控件表(name/type 是静态串,随时可读;ready/on 由定时器刷新)
-        TrainerCheatInfo snap[TRAINER_API_MAX_CHEATS];
-        int n = 0;
-        if (TrainerApi_GetSnapshot(snap, TRAINER_API_MAX_CHEATS, &n) && n > 0) {
-            g_uiCount = n;
-            for (int i = 0; i < n; ++i) g_uiMap[i] = snap[i];
-        }
-        UiBuildControls(h);
-        SetTimer(h, UI_TIMER_ID, 100, nullptr);
-        return 0;
-    }
-    case WM_COMMAND: {
-        int id = (int)LOWORD(wp);
-        if (HIWORD(wp) != BN_CLICKED ||
-            id < UI_CTRL_BASE || id >= UI_CTRL_BASE + g_uiCount)
-            return 0;
-        int i = id - UI_CTRL_BASE;
-        const TrainerCheatInfo& ci = g_uiMap[i];
-        if (strcmp(ci.type, "toggle") == 0) {
-            bool on = SendMessageW(g_uiCtrl[i], BM_GETCHECK, 0, 0) == BST_CHECKED;
-            TrainerApi_Set(ci.id, on);
-        } else {
-            wchar_t buf[32] = {0};
-            GetDlgItemTextW(h, UI_EDIT_ID, buf, 32);
-            int amount = (int)wcstol(buf, nullptr, 10);
-            if (amount <= 0) amount = 100;               // 与热键默认步长一致
-            TrainerApi_Act(ci.id, amount);
-        }
-        return 0;
-    }
-    case WM_TIMER: {
-        static bool prevIns = false;                     // Insert 边沿检测
-        bool ins = (GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
-        if (ins && !prevIns) {
-            bool vis = IsWindowVisible(h);
-            ShowWindow(h, vis ? SW_HIDE : SW_SHOW);
-            if (!vis) SetForegroundWindow(h);
-        }
-        prevIns = ins;
-        TrainerCheatInfo snap[TRAINER_API_MAX_CHEATS];   // 快照同步:热键/管道改动回显
-        int n = 0;
-        if (TrainerApi_GetSnapshot(snap, TRAINER_API_MAX_CHEATS, &n)) {
-            for (int i = 0; i < n && i < g_uiCount; ++i) {
-                if (strcmp(g_uiMap[i].id, snap[i].id) != 0) continue;
-                EnableWindow(g_uiCtrl[i], snap[i].ready);
-                if (strcmp(snap[i].type, "toggle") == 0)
-                    SendMessageW(g_uiCtrl[i], BM_SETCHECK,
-                                 snap[i].on ? BST_CHECKED : BST_UNCHECKED, 0);
-            }
-        }
-        return 0;
-    }
-    case WM_CLOSE:
-        ShowWindow(h, SW_HIDE);                          // 关闭 = 隐藏,游戏继续
-        return 0;
-    case WM_DESTROY:
-        KillTimer(h, UI_TIMER_ID);
-        return 0;
-    }
-    return DefWindowProcW(h, msg, wp, lp);
-}
-
-static DWORD WINAPI UiThreadEntry(LPVOID) {
-    WNDCLASSW wc = {};
-    wc.lpfnWndProc   = UiWndProc;
-    wc.hInstance     = g_hSelf;
-    wc.lpszClassName = L"TwinshotTrainerUI";
-    wc.hCursor       = LoadCursor(nullptr, IDC_ARROW);
-    if (!RegisterClassW(&wc)) return 0;
-
-    HWND h = CreateWindowExW(WS_EX_TOPMOST, wc.lpszClassName, L"Twin Shot Trainer",
-                             WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-                             CW_USEDEFAULT, CW_USEDEFAULT, 250, 120,
-                             nullptr, nullptr, g_hSelf, nullptr);
-    if (!h) return 0;
-    ShowWindow(h, SW_SHOW);                              // 注入即弹窗
-    while (g_run) {
-        MSG m;
-        while (PeekMessageW(&m, nullptr, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&m);
-            DispatchMessageW(&m);
-        }
-        Sleep(10);
-    }
-    return 0;
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
     switch (reason) {
     case DLL_PROCESS_ATTACH:
         DisableThreadLibraryCalls(hModule);
         InitializeCriticalSection(&g_ipcCs);
-        g_hSelf = hModule;
         g_run = true;
         CreateThread(nullptr, 0, WorkerEntry, nullptr, 0, nullptr);
         CreateThread(nullptr, 0, PipeThreadEntry, nullptr, 0, nullptr);
-        CreateThread(nullptr, 0, UiThreadEntry, nullptr, 0, nullptr);
         break;
     case DLL_PROCESS_DETACH:
         g_run = false;   // 工作线程检测后退出并还原;强制卸载时补丁保留,属预期

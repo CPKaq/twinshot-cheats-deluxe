@@ -18,14 +18,14 @@
 
 ```bat
 cl /O2 /EHsc injector\injector.cpp /Fe:build\injector.exe shell32.lib
-cl /LD /O2 /EHsc trainer\trainer.cpp /Fe:build\trainer.dll user32.lib gdi32.lib
+cl /LD /O2 /EHsc trainer\trainer.cpp /Fe:build\trainer.dll user32.lib
 ```
 
 ### MinGW-w64
 
 ```bat
 g++ -O2 -std=c++17 -Wall injector\injector.cpp -o build\injector.exe -lshell32 -static -static-libstdc++ -static-libgcc
-g++ -O2 -std=c++17 -Wall -shared trainer\trainer.cpp -o build\trainer.dll -luser32 -lgdi32 -static -static-libgcc
+g++ -O2 -std=c++17 -Wall -shared trainer\trainer.cpp -o build\trainer.dll -luser32 -static -static-libgcc
 ```
 
 > `-static` 让产物不依赖 MinGW 运行时 dll(libstdc++-6.dll / libgcc_s_seh-1.dll),

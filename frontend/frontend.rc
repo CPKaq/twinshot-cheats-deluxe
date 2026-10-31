@@ -1,0 +1,6 @@
+#include "resource.h"
+
+IDR_FONT_ZPIX RCDATA "assets/zpix.ttf"
+IDR_FONT_FFF RCDATA "assets/FFF Neostandard Bold Regular.ttf"
+
+1 24 "frontend.manifest"

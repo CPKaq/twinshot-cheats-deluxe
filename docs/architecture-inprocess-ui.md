@@ -3,11 +3,10 @@
 > 形态:**单 DLL,进程内 UI**——`trainer.dll` 注入后自动弹出一个独立 Win32 窗口,
 > Insert 键显隐。UI 与后端核心同项目编译,**零 IPC,直接调用 `TrainerApi`**。
 >
-> **状态:B1 为过渡/回退形态。** 正式 UI 采用外置前端(方案 A),见
-> `docs/architecture-frontend-standalone.md`;其 §12 列出了正式 UI 验收后
-> 可从 `trainer/trainer.cpp` 清理的 B1 代码、依赖与文档。
+> **状态:B1 已从 `trainer/trainer.cpp` 清理，`trainer/trainer_api.h` 已删除。**
+> 正式 UI 为外置前端(方案 A),见 `docs/architecture-frontend-standalone.md`。
+> 本文仅保留为历史设计记录，不再对应可编译代码。
 >
-> 实现:`trainer/trainer_api.h`(接口层)+ `trainer/trainer.cpp` 的"进程内 UI(B1)"段;
 > 外部前端(A 形态,管道协议)见 `docs/architecture-frontend.md`。
 
 ## 1. 架构总览

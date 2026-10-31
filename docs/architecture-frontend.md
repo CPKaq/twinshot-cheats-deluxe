@@ -1,4 +1,4 @@
-# 前端对接架构:Twin Shot Trainer 前后端协议(M1)
+# 前端对接架构:Twin Shot Cheats Deluxe 前后端协议(M1)
 
 > 给前端开发者的对接文档。**前端不需要知道注入 / Mono / 内存 patch 的任何细节**:
 > 它只是"连接一根命名管道,收发 JSON 行"的纯客户端。
@@ -7,7 +7,7 @@
 >
 > **注**:正式 UI 采用**外置前端(方案 A)**,设计与清理清单见
 > `docs/architecture-frontend-standalone.md`——UI 独立进程,通过本管道控制 `trainer.dll`。
-> B1(进程内 UI,见 `docs/architecture-inprocess-ui.md`)为过渡/回退形态,正式 UI 验收后按该文档 §12 清理。
+> B1（进程内 UI）已从 `trainer.dll` 清理，`docs/architecture-inprocess-ui.md` 仅保留为历史记录。
 
 ## 1. 总体架构与职责划分
 
@@ -56,7 +56,7 @@
 | ping | `{"cmd":"ping"}` | 探活 + 协议版本 |
 | list | `{"cmd":"list"}` | 枚举作弊项(含实时状态) |
 | set | `{"cmd":"set","id":"god","on":false}` | 开/关一个**开关型**作弊 |
-| act | `{"cmd":"act","id":"coins"}` | 触发一个**动作型**作弊(如金币+100) |
+| act | `{"cmd":"act","id":"coins"}` | 触发一个**动作型**作弊(如增加金币) |
 
 ## 4. 事件(后端 → 前端)
 
@@ -115,7 +115,7 @@ send({"cmd": "act", "id": "coins"});           print(recv())
 |---|---|---|---|---|
 | `god` | 无伤 | toggle | F3 | 怪物攻击不生效 |
 | `lock` | 锁血 | toggle | F4 | 受击反馈保留,血量不减 |
-| `coins` | 金币+100 | action | F5 | 金币 +100(真实值,持久化) |
+| `coins` | 增加金币 | action | F5 | 金币 +100(真实值,持久化) |
 
 > 前端应**始终以 `list` 返回为准**渲染列表,不要硬编码上表——后端加作弊项后前端无需改代码。
 
