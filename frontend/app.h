@@ -217,9 +217,11 @@ private:
     HFONT font_ = nullptr;
     HFONT titleFont_ = nullptr;
     HFONT smallFont_ = nullptr;
-    HANDLE fontMem_[2] = {nullptr, nullptr};
+    HFONT aboutTitleFont_ = nullptr;   // “关于”页大标题（IPix，原生 16px 支持中文）
+    HANDLE fontMem_[3] = {nullptr, nullptr, nullptr};
     bool fontBodyLoaded_ = false;
     bool fontTitleLoaded_ = false;
+    bool fontAboutTitleLoaded_ = false;
 
     bool dragging_ = false;
     POINT dragCursor_{};

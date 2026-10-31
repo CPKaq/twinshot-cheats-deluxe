@@ -1,3 +1,8 @@
+# Fonts assets
+*.ttf
+*.otf
+*.res
+
 # Prerequisites
 *.d
 

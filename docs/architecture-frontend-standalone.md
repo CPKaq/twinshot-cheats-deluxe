@@ -132,12 +132,12 @@ frontend.exe                              Twin Shot Deluxe.exe
 - 底部左侧显示 `Insert 隐藏 · 热键后台有效`;右侧为“关于”“退出”按钮;
 - 未连接时列表区域显示“等待 trainer 列表…”+“请先启动游戏，再点击下方‘注入’”+`[注入]`按钮;
 - 注入中按钮消失,文字显示“正在注入…（injector 最多等待约 60 秒）”;失败/取消 UAC 后按钮重新出现,文字说明原因;按钮文字始终为“注入”;
-- “关于”窗口为主面板同款的无边框像素窗口:头部为单行标题区（可拖动）,右上角手绘像素 × 或 Esc 关闭;内容为占位文本(开发者列表和外部资源说明待补充),以数据块(`AboutBlock`,含预留图标槽位)组织,便于将来插入图标;
+- “关于”窗口为主面板同款的无边框像素窗口:头部为单行标题区（可拖动）,标题用 `IPix`（原生 16px 中文名），右上角手绘像素 × 或 Esc 关闭;内容为占位文本(开发者列表和外部资源说明待补充),以数据块(`AboutBlock`,含预留图标槽位)组织,便于将来插入图标;
 - 连接状态、初始化中、游戏退出、管道断开、动作成败都要有明确文字,不只靠颜色。
 
 ### 4.3 像素化技术约束
 
-- **字体**:当前使用官方 `frontend/assets/zpix.ttf`（字体族 `Zpix`，12px 正文/小字）与 `FFF Neostandard Bold Regular.ttf`（字体族 `FFF Neostandard Bold`，8px 设计，按 16px 用于标题/大字）；两者以 `RCDATA` 嵌入 exe,`AddFontMemResourceEx` 私有加载,失败回退系统字体;旧的 `Zfull-GB.ttf`/`IPix.ttf` 不再引用;
+- **字体**:三份精简子集以 `RCDATA` 嵌入 exe,`AddFontMemResourceEx` 私有加载,失败回退系统字体;`zpix.ttf`（字体族 `Zpix`，12px 正文/小字，子集约 12KB）、`FFF Neostandard Bold Regular.ttf`（字体族 `FFF Neostandard Bold`，8px 设计，按 16px 用于主面板标题/大字，约 23KB）、`ipix.ttf`（字体族 `IPix`，原生 16px 中文，仅用于“关于”页大标题，子集约 1.3KB）；完整原始 Zpix 保留在 `frontend/assets/zpix_raw.ttf` 供重新子集化;已移除的 `Zfull-GB.ttf` 不再引用;
 - **字号**:只用字体原生像素尺寸或整数倍;`CreateFontW` 使用负高度、`NONANTIALIASED_QUALITY`,关闭 ClearType;当前 1x/2x/3x 对应 12/24/36px 与 16/32/48px;
 - **精简**:`FFF` 只有约 23KB；`Zpix` 约 4.7MB，正式发布前可按 UI 文案和已知作弊名子集化，详见 `frontend/assets/README.md`;
 - **DPI**:manifest 声明 Per-Monitor V2;处理 `WM_DPICHANGED`;按设计稿定义的 1x/2x 级别缩放,不做小数倍拉伸;
@@ -491,7 +491,7 @@ build\
 - [x] 手动注入：未连接时“注入”按钮启动同目录 injector.exe（UAC），注入中隐藏按钮，失败/超时恢复按钮；
 - [x] “关于”窗口：主面板同款无边框像素窗口（占位内容），×/Esc 关闭，主窗口隐藏时一起隐藏；主窗口默认位于主显示器左上角 (200,100)，“关于”偏移 (100,100)；
 - [ ] 图标/九宫格/最终配色；
-- [ ] 字体子集化（当前 `zpix.ttf` 约 4.7MB，exe 约 5.5MB）；
+- [ ] 字体子集字符覆盖维护（当前三份字体均为精简子集，exe 约 840KB；新增 UI 文案/作弊名或修改“关于”标题文字时需重做子集，原始完整 Zpix 保留为 `frontend/assets/zpix_raw.ttf`）；
 - [ ] 托盘、滚动、完整无障碍；
 - [ ] 与真实游戏联调 §11 中的焦点/暂停/金币项。
 
