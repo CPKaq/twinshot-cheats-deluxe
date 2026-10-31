@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "pipe_client.h"
+#include "ui_about.h"
 
 constexpr wchar_t kWindowClass[] = L"TwinShotTrainerFrontend";
 constexpr wchar_t kWindowTitle[] = L"Twin Shot Cheats Deluxe";
@@ -172,6 +173,15 @@ private:
     void CloseInjectorHandle();
     void ApplyDarkTitleBar();
 
+    // “关于”窗口（无边框像素风，与主面板共用绘制原语）
+    void OnAboutPaint();
+    void OnAboutMouseMove(int x, int y);
+    void OnAboutMouseLeave();
+    void OnAboutLButtonDown(int x, int y);
+    void OnAboutLButtonUp(int x, int y);
+    void OnAboutKeyDown(WPARAM key);
+    void UpdateAboutSize();
+
     void HandleLine(const std::string& line);
     void ApplyList(const std::string& json);
     void ApplyState(const std::string& json);
@@ -194,6 +204,15 @@ private:
     AppState state_;
     Layout layout_;
     PipeClient pipe_;
+
+    // “关于”窗口状态
+    AboutLayout aboutLayout_;
+    int aboutHover_ = 0;
+    int aboutPressed_ = 0;
+    bool aboutTracking_ = false;
+    bool aboutDragging_ = false;
+    POINT aboutDragCursor_{};
+    RECT aboutDragWindow_{};
 
     HFONT font_ = nullptr;
     HFONT titleFont_ = nullptr;

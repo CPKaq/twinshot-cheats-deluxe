@@ -2,9 +2,9 @@
 
 纯 C++ / Win32 / GDI 的独立控制窗口。它不注入游戏、不读取游戏内存、不调用 Mono，只通过命名管道 `\\.\pipe\twinshot-trainer` 与 `trainer.dll` 通信。
 
-当前是**架构与布局骨架 + 占位皮肤**：像素字体已接入（官方 Zpix + FFF Neostandard Bold），图标和九宫格素材仍待替换。视觉稿确定后，主要改 `ui.cpp` 的绘制和 `frontend.rc` 资源。
+当前是**架构与布局骨架 + 占位皮肤**：像素字体已接入（官方 Zpix + FFF Neostandard Bold），图标和九宫格素材仍待替换。视觉稿确定后，主要改 `ui.cpp` / `ui_about.cpp` 的绘制和 `frontend.rc` 资源。
 
-窗口为**无边框置顶窗口**：没有系统标题栏，拖动顶部标题区域可移动；Insert 隐藏/显示，面板底部“退出”按钮关闭程序。
+窗口为**无边框置顶窗口**：没有系统标题栏，拖动顶部标题区域可移动；Insert 隐藏/显示，面板底部“退出”按钮关闭程序。主窗口默认位于**主显示器左上角 (200,100)**，“关于”窗口在此基础**偏移 (100,100)**。“关于”窗口是**主面板同款的无边框像素窗口**：单行标题区可拖动，右上角手绘像素 ×（Esc 也可关闭），主窗口隐藏时一起隐藏；当前内容为占位文本（正式的开发者列表/外部资源说明及图标待补充）。
 
 ## 文件
 
@@ -12,7 +12,9 @@
 |---|---|
 | `main.cpp` | `WinMain`、DPI、单实例、消息循环 |
 | `app.h/.cpp` | 应用状态、管道事件、焦点、窗口、命令 |
-| `ui.h/.cpp` | 布局计算、命中测试、GDI 自绘 |
+| `ui.h/.cpp` | 布局计算、命中测试、GDI 自绘（主面板） |
+| `ui_about.h/.cpp` | “关于”窗口：布局/命中/像素风绘制（`ui_about.cpp` 内容占位） |
+| `ui_common.h` | 两窗口共用的像素配色与 GDI 原语（`Fill`/`Frame`/`Text`） |
 | `pipe_client.h/.cpp` | 命名管道客户端线程 |
 | `focus.h/.cpp` | 找游戏窗口、激活前端、恢复游戏焦点 |
 | `frontend.rc` / `frontend.manifest` | 字体、DPI manifest 等资源 |
@@ -34,7 +36,7 @@ frontend\build.bat
 ```bat
 windres -I frontend frontend\frontend.rc -O coff -o build\frontend.res
 g++ -std=c++17 -O2 -Wall -Wextra -Wno-cast-function-type -mwindows -DUNICODE -D_UNICODE ^
-    frontend\main.cpp frontend\app.cpp frontend\ui.cpp ^
+    frontend\main.cpp frontend\app.cpp frontend\ui.cpp frontend\ui_about.cpp ^
     frontend\pipe_client.cpp frontend\focus.cpp build\frontend.res ^
     -o build\frontend.exe -luser32 -lgdi32 -lshell32 ^
     -static -static-libgcc -static-libstdc++
@@ -104,7 +106,7 @@ build\frontend.exe --demo
 | 未连接时点击“注入” | 启动同目录 `injector.exe`（会触发管理员 UAC）；注入中按钮消失，状态文字提示进度 |
 | 点击开关/执行 | 通过管道发送 `set` / `act` |
 | 点击金币数量 | 编辑“金币数量”；Enter 提交；`-` / `+` 每次调整 100；Esc 取消编辑 |
-| 点击“关于” | 打开空白“关于”窗口（后续放开发者列表/外部资源说明） |
+| 点击“关于” | 打开同款像素风“关于”窗口（占位内容：开发者/外部资源）；右上角 × 或 Esc 关闭 |
 | 面板“退出” | 隐藏窗口、恢复游戏焦点并退出前端；DLL 的 F3/F4/F5 仍有效 |
 
 ## 当前未完成 / 后续

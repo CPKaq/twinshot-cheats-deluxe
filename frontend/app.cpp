@@ -3,6 +3,7 @@
 
 #include "focus.h"
 #include "ui.h"
+#include "ui_common.h"
 #include "resource.h"
 
 #include <shellapi.h>
@@ -236,9 +237,10 @@ bool App::Init(HINSTANCE hinst, bool demo) {
     const DWORD exStyle = WS_EX_TOPMOST | WS_EX_TOOLWINDOW;
     AdjustWindowRectEx(&wr, style, FALSE, exStyle);
 
+    // 默认位置：主显示器工作区左上角 (200,100)（“关于”窗口在此基础上偏移 (100,100)）
     hwnd_ = CreateWindowExW(
         exStyle, kWindowClass, kWindowTitle, style,
-        CW_USEDEFAULT, CW_USEDEFAULT, wr.right - wr.left, wr.bottom - wr.top,
+        200 - wr.left, 100 - wr.top, wr.right - wr.left, wr.bottom - wr.top,
         nullptr, nullptr, hinst, this);
     if (!hwnd_) return false;
 
@@ -292,21 +294,87 @@ LRESULT CALLBACK App::AboutWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     auto* self = reinterpret_cast<App*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 
     switch (msg) {
-    case WM_ERASEBKGND: {
-        // 先留空；后续在这里/ WM_PAINT 绘制开发者列表和外部资源说明。
-        RECT rc{};
-        GetClientRect(hwnd, &rc);
-        HBRUSH brush = CreateSolidBrush(RGB(20, 22, 28));
-        FillRect(reinterpret_cast<HDC>(wp), &rc, brush);
-        DeleteObject(brush);
+    case WM_ERASEBKGND:
+        // 背景在 WM_PAINT 的缓冲 DC 中绘制，返回 1 防闪烁
         return 1;
-    }
-    case WM_PAINT: {
-        PAINTSTRUCT ps{};
-        BeginPaint(hwnd, &ps);
-        EndPaint(hwnd, &ps);
+    case WM_PAINT:
+        if (self) {
+            self->OnAboutPaint();
+            return 0;
+        }
+        break;
+    case WM_MOUSEMOVE:
+        if (self) {
+            self->OnAboutMouseMove(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+            return 0;
+        }
+        break;
+    case WM_MOUSELEAVE:
+        if (self) {
+            self->OnAboutMouseLeave();
+            return 0;
+        }
+        break;
+    case WM_CAPTURECHANGED:
+        if (self) {
+            self->aboutDragging_ = false;
+            return 0;
+        }
+        break;
+    case WM_LBUTTONDOWN:
+        if (self) {
+            self->OnAboutLButtonDown(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+            return 0;
+        }
+        break;
+    case WM_LBUTTONUP:
+        if (self) {
+            self->OnAboutLButtonUp(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+            return 0;
+        }
+        break;
+    case WM_KEYDOWN:
+        if (self) {
+            self->OnAboutKeyDown(wp);
+            return 0;
+        }
+        break;
+    case WM_ACTIVATE:
+        InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
+    case WM_DPICHANGED: {
+        if (self) {
+            const int dpi = HIWORD(wp);
+            const RECT* suggested = reinterpret_cast<const RECT*>(lp);
+            if (dpi && dpi != self->state_.dpi) {
+                self->state_.dpi = dpi;
+                self->UpdateFonts();
+            }
+            if (suggested) {
+                SetWindowPos(hwnd, nullptr, suggested->left, suggested->top,
+                             suggested->right - suggested->left,
+                             suggested->bottom - suggested->top,
+                             SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+            self->UpdateAboutSize();
+            if (self->about_) InvalidateRect(self->about_, nullptr, FALSE);
+            return 0;
+        }
+        break;
     }
+    case WM_SETCURSOR:
+        if (LOWORD(lp) == HTCLIENT && self) {
+            const auto pos = GetMessagePos();
+            POINT pt{GET_X_LPARAM(pos), GET_Y_LPARAM(pos)};
+            ScreenToClient(hwnd, &pt);
+            const int hit = HitTestAbout(self->aboutLayout_, pt.x, pt.y);
+            SetCursor(LoadCursorW(nullptr,
+                hit == HIT_ABOUT_HEADER ? IDC_SIZEALL
+                : hit == HIT_ABOUT_CLOSE ? IDC_HAND
+                : IDC_ARROW));
+            return TRUE;
+        }
+        break;
     case WM_CLOSE:
         DestroyWindow(hwnd);
         return 0;
@@ -699,10 +767,11 @@ void App::ShowAbout() {
     wc.hbrBackground = nullptr;
     if (!RegisterClassExW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return;
 
-    const int s = PixelScale(state_.dpi);
-    const DWORD style = WS_CAPTION | WS_SYSMENU;
+    // 与主面板同款的无边框置顶窗口；客户区尺寸由关于页布局决定
+    aboutLayout_ = ComputeAboutLayout(state_.dpi);
+    const DWORD style = WS_POPUP;
     const DWORD exStyle = WS_EX_TOOLWINDOW | WS_EX_TOPMOST;
-    RECT rc{0, 0, 420 * s, 300 * s};
+    RECT rc{0, 0, aboutLayout_.width, aboutLayout_.height};
     AdjustWindowRectEx(&rc, style, FALSE, exStyle);
 
     RECT mainRc{};
@@ -711,8 +780,10 @@ void App::ShowAbout() {
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
     int w = rc.right - rc.left;
     int h = rc.bottom - rc.top;
-    int x = mainRc.left + ((mainRc.right - mainRc.left) - w) / 2;
-    int y = mainRc.top + ((mainRc.bottom - mainRc.top) - h) / 2;
+    // “关于”在主窗口基础上偏移 (100,100)，避免与主面板重叠
+    // （主窗口默认位于主显示器左上角 (200,100)，“关于”通常落在 (300,200)）
+    int x = mainRc.left + 100;
+    int y = mainRc.top + 100;
     if (x < work.left) x = work.left;
     if (y < work.top) y = work.top;
     if (x + w > work.right) x = work.right - w;
@@ -724,6 +795,121 @@ void App::ShowAbout() {
     ShowWindow(about_, SW_SHOW);
     UpdateWindow(about_);
     SetForegroundWindow(about_);
+}
+
+void App::OnAboutPaint() {
+    PAINTSTRUCT ps{};
+    HDC hdc = BeginPaint(about_, &ps);
+    RECT rc{};
+    GetClientRect(about_, &rc);
+    int w = std::max<int>(1, rc.right - rc.left);
+    int h = std::max<int>(1, rc.bottom - rc.top);
+
+    HDC mem = CreateCompatibleDC(hdc);
+    HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
+    HBITMAP oldBmp = static_cast<HBITMAP>(SelectObject(mem, bmp));
+
+    HBRUSH bg = CreateSolidBrush(kBg);
+    FillRect(mem, &rc, bg);
+    DeleteObject(bg);
+
+    PaintAbout(mem, aboutLayout_, font_, titleFont_, smallFont_,
+               aboutHover_, aboutPressed_);
+    BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
+
+    SelectObject(mem, oldBmp);
+    DeleteObject(bmp);
+    DeleteDC(mem);
+    EndPaint(about_, &ps);
+}
+
+void App::UpdateAboutSize() {
+    if (!about_ || !IsWindow(about_)) return;
+
+    aboutLayout_ = ComputeAboutLayout(state_.dpi);
+    RECT rc{0, 0, aboutLayout_.width, aboutLayout_.height};
+    const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(about_, GWL_STYLE));
+    const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(about_, GWL_EXSTYLE));
+    AdjustWindowRectEx(&rc, style, FALSE, exStyle);
+
+    RECT wr{};
+    GetWindowRect(about_, &wr);
+    SetWindowPos(about_, nullptr, wr.left, wr.top,
+                 rc.right - rc.left, rc.bottom - rc.top,
+                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    InvalidateRect(about_, nullptr, FALSE);
+}
+
+void App::OnAboutMouseMove(int x, int y) {
+    if (aboutDragging_) {
+        POINT pt{};
+        GetCursorPos(&pt);
+        const int dx = pt.x - aboutDragCursor_.x;
+        const int dy = pt.y - aboutDragCursor_.y;
+        SetWindowPos(about_, nullptr, aboutDragWindow_.left + dx, aboutDragWindow_.top + dy,
+                     0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        return;
+    }
+    const int hit = HitTestAbout(aboutLayout_, x, y);
+    if (hit != aboutHover_) {
+        aboutHover_ = hit;
+        InvalidateRect(about_, nullptr, FALSE);
+    }
+
+    if (!aboutTracking_) {
+        TRACKMOUSEEVENT tme{};
+        tme.cbSize = sizeof(tme);
+        tme.dwFlags = TME_LEAVE;
+        tme.hwndTrack = about_;
+        if (TrackMouseEvent(&tme)) aboutTracking_ = true;
+    }
+}
+
+void App::OnAboutMouseLeave() {
+    if (aboutDragging_) return;
+    aboutTracking_ = false;
+    if (aboutHover_) {
+        aboutHover_ = HIT_NONE;
+        InvalidateRect(about_, nullptr, FALSE);
+    }
+}
+
+void App::OnAboutLButtonDown(int x, int y) {
+    SetFocus(about_);
+    POINT pt{x, y};
+    const int hit = HitTestAbout(aboutLayout_, x, y);
+    if (PtInRect(&aboutLayout_.header, pt) && hit != HIT_ABOUT_CLOSE) {
+        // 无边框窗口：标题区域拖动（× 按钮优先于拖动）
+        aboutDragging_ = true;
+        GetCursorPos(&aboutDragCursor_);
+        GetWindowRect(about_, &aboutDragWindow_);
+        SetCapture(about_);
+        return;
+    }
+    aboutPressed_ = hit;
+    InvalidateRect(about_, nullptr, FALSE);
+}
+
+void App::OnAboutLButtonUp(int x, int y) {
+    if (aboutDragging_) {
+        aboutDragging_ = false;
+        if (GetCapture() == about_) ReleaseCapture();
+        return;
+    }
+    const int hit = HitTestAbout(aboutLayout_, x, y);
+    const int pressed = aboutPressed_;
+    aboutPressed_ = HIT_NONE;
+    if (pressed != HIT_NONE && pressed == hit && hit == HIT_ABOUT_CLOSE) {
+        DestroyWindow(about_);
+        return;
+    }
+    InvalidateRect(about_, nullptr, FALSE);
+}
+
+void App::OnAboutKeyDown(WPARAM key) {
+    if (key == VK_ESCAPE) {
+        DestroyWindow(about_);
+    }
 }
 
 void App::CloseInjectorHandle() {

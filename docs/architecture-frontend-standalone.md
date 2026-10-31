@@ -93,8 +93,9 @@ frontend.exe                              Twin Shot Deluxe.exe
 - 无边框顶层窗口，标题 `Twin Shot Cheats Deluxe`；
 - `WS_POPUP` + `WS_EX_TOPMOST | WS_EX_TOOLWINDOW`（不占任务栏/Alt+Tab）；
 - 顶部标题区域自绘，支持鼠标拖动移动窗口；没有系统标题栏/最小化/关闭按钮；
+- 主窗口默认位于主显示器左上角 (200,100)（客户区）；“关于”窗口在其基础上偏移 (100,100)，避免与主面板重叠；
 - 面板底部“退出”按钮 = 隐藏、恢复游戏、退出前端；
-- Insert 只负责隐藏/显示；Esc 仅取消数值编辑，不再隐藏；
+- Insert 只负责隐藏/显示；Esc 仅取消数值编辑，不再隐藏（“关于”窗口内 Esc 关闭该窗口）；
 - 最小尺寸由设计稿决定，保证最长中文名 + 热键 + 控件不挤压；
 - 记住上次位置（可选），恢复时做屏幕边界校正，避免出现在屏幕外；
 - 置顶在显示时设置；不在游戏运行时高频抢 z-order。
@@ -131,7 +132,7 @@ frontend.exe                              Twin Shot Deluxe.exe
 - 底部左侧显示 `Insert 隐藏 · 热键后台有效`;右侧为“关于”“退出”按钮;
 - 未连接时列表区域显示“等待 trainer 列表…”+“请先启动游戏，再点击下方‘注入’”+`[注入]`按钮;
 - 注入中按钮消失,文字显示“正在注入…（injector 最多等待约 60 秒）”;失败/取消 UAC 后按钮重新出现,文字说明原因;按钮文字始终为“注入”;
-- “关于”窗口先留空，后续放开发者列表和外部资源引用说明;
+- “关于”窗口为主面板同款的无边框像素窗口:头部为单行标题区（可拖动）,右上角手绘像素 × 或 Esc 关闭;内容为占位文本(开发者列表和外部资源说明待补充),以数据块(`AboutBlock`,含预留图标槽位)组织,便于将来插入图标;
 - 连接状态、初始化中、游戏退出、管道断开、动作成败都要有明确文字,不只靠颜色。
 
 ### 4.3 像素化技术约束
@@ -424,7 +425,9 @@ M3 可选 launcher:前端/独立 launcher 检测游戏、提权运行 injector�
 frontend/
   main.cpp              // WinMain、单实例、消息循环
   app.h / app.cpp       // 应用状态、命令分发、定时器、焦点
-  ui.h / ui.cpp         // 布局计算、命中测试、GDI 自绘（占位皮肤）
+  ui.h / ui.cpp         // 布局计算、命中测试、GDI 自绘（主面板，占位皮肤）
+  ui_about.h / .cpp     // “关于”窗口：布局、命中测试、像素风绘制（内容占位）
+  ui_common.h           // 两窗口共用的像素配色与 GDI 原语（Fill/Frame/Text）
   pipe_client.h / .cpp  // 管道线程、JSON Lines 收发
   focus.h / focus.cpp   // 游戏窗口发现、ForceForeground/RestoreGame
   frontend.rc / frontend.manifest
@@ -486,12 +489,13 @@ build\
 - [x] 焦点：游戏窗口发现、显示激活、隐藏恢复、Insert 显隐、无边框标题拖动；Esc 仅取消数值编辑；
 - [x] 基础交互：开关、动作、金币数量、无边框拖动、关于/退出按钮、单实例；
 - [x] 手动注入：未连接时“注入”按钮启动同目录 injector.exe（UAC），注入中隐藏按钮，失败/超时恢复按钮；
+- [x] “关于”窗口：主面板同款无边框像素窗口（占位内容），×/Esc 关闭，主窗口隐藏时一起隐藏；主窗口默认位于主显示器左上角 (200,100)，“关于”偏移 (100,100)；
 - [ ] 图标/九宫格/最终配色；
 - [ ] 字体子集化（当前 `zpix.ttf` 约 4.7MB，exe 约 5.5MB）；
 - [ ] 托盘、滚动、完整无障碍；
 - [ ] 与真实游戏联调 §11 中的焦点/暂停/金币项。
 
-当前皮肤是**占位实现**，字体使用系统 `Microsoft YaHei UI`；视觉稿确定后主要改 `frontend/ui.cpp` 和资源文件。
+当前皮肤是**占位实现**（纯色块 + 像素描边），像素字体已接入；视觉稿确定后主要改 `frontend/ui.cpp`、`frontend/ui_about.cpp` 和资源文件。
 
 已用本地 mock 命名管道验证：`list` 解析、开关 `set/state`、动作 `act/done`、断线重连、`--demo` 布局和基本点击；真实游戏联调项仍见 §11。
 
@@ -513,7 +517,7 @@ build\
 - [ ] 激活失败时面板是否保持可见，且不会被误自动隐藏;
 - [ ] Esc 是否只取消数值编辑、不隐藏窗口;
 - [ ] 无边框窗口顶部拖动的边界、双击、多显示器表现;
-- [ ] “关于”按钮能打开空白关于窗口，主窗口隐藏时一起隐藏;
+- [ ] “关于”按钮能打开像素风关于窗口（占位内容），主窗口隐藏时一起隐藏；× 或 Esc 均可关闭;
 - [ ] 多显示器、125%/150% DPI 下窗口位置与像素字体清晰度;
 - [ ] Insert 长按/连按是否只切换一次(`MOD_NOREPEAT`/边沿检测);
 - [ ] Insert 与游戏按键冲突时的回退/提示。
@@ -560,72 +564,12 @@ build\
 
 ## 12. B1 清理记录（已执行）
 
-> `trainer/trainer.cpp` 的 B1 UI、`TrainerApi` 与 `trainer/trainer_api.h` 已于 2026-10-31 删除；以下保留为历史记录，不再代表当前代码。
+> `trainer/trainer.cpp` 的 B1 UI、`TrainerApi` 与 `trainer/trainer_api.h` 已于 2026-10-31 删除；`trainer.dll` 构建不再链接 `gdi32`。本节由原始的分符号清理清单精简而来，详细的符号级对照见该日期的 git 历史；回归项见 §11.5。
 
-### 12.1 建议的迁移方式
-
-1. 增加编译开关(如 `TWINSHOT_INPROC_UI`,默认 0):
-   - `DllMain` 不再创建 UI 线程;
-   - UI 相关函数可保留但 `#if` 排除,便于短期回退;
-2. 外置前端通过全部 §11 验收;
-3. 删除 B1 代码/资源,更新构建与文档;
-4. 回归注入、管道、热键、作弊功能。
-
-> **执行状态（2026-10-31）：B1 已清理。** `trainer.cpp` 中的 B1 UI 段、`DllMain` UI 线程、`TrainerApi` 函数以及 `trainer/trainer_api.h` 已删除；`trainer.dll` 构建不再链接 `gdi32`。下面 §12.2~§12.5 保留为历史清理记录。
-
-### 12.2 正式 UI 验收后可删除的代码
-
-以当前 `trainer/trainer.cpp` 为准(行号可能随修改漂移,按符号名查找):
-
-| 符号/区域 | 当前大致位置 | 说明 |
-|---|---|---|
-| `g_hSelf` | 907 行附近 | 仅 B1 窗口类/控件创建使用;删除后 `DllMain` 也不再保存 |
-| `g_uiCtrl` / `g_uiMap` / `g_uiCount` | 909~911 行 | B1 控件表/快照缓存 |
-| `UI_EDIT_ID` / `UI_CTRL_BASE` / `UI_TIMER_ID` | 913~915 行 | B1 控件 ID/定时器 |
-| `UiUtf8ToWide` | 917~920 行 | B1 专用 UTF-8→宽字符 |
-| `UiSetFont` | 922~925 行 | B1 控件字体设置 |
-| `UiBuildControls` | 927~957 行 | B1 布局/控件创建 |
-| `UiWndProc` | 959~1022 行 | B1 窗口过程(Insert、WM_COMMAND、WM_TIMER) |
-| `UiThreadEntry` | 1024~1047 行 | B1 UI 线程与消息循环 |
-| `DllMain` 中 UI 线程创建 | 1058 行 | `CreateThread(... UiThreadEntry ...)` |
-| `DllMain` 中 `g_hSelf = hModule` | 1054 行 | 仅 B1 使用 |
-| `#include <cwchar>` | 30 行附近 | 若删除 UI 后无其他 `wcstol/wchar_t` 使用,可移除 |
-| B1 相关注释 | 文件头 8 行、UI 段注释 | 更新为"外置前端见 docs/..." |
-
-### 12.3 已清理的 API
-
-| 符号 | 状态 |
-|---|---|
-| `TrainerApi_GetSnapshot` | 已删除；外置前端只使用管道 `list` |
-| `TrainerApi_Set` / `TrainerApi_Act` | 已删除；外置前端走管道命令队列 |
-| `trainer_api.h` 中的 `TrainerCheatInfo` / `TRAINER_API_MAX_CHEATS` | 随文件一并删除 |
-
-> 若未来需要进程内诊断接口，可重新设计，不复用 B1 的旧 API。
-
-### 12.4 构建与文档清理
-
-- `docs/phase3-build.md`:
-  - MSVC 命令去掉 `gdi32.lib`;
-  - MinGW 命令去掉 `-lgdi32`;
-  - 说明 DLL 不再含 UI,前端单独构建;
-- `README.md`:
-  - 目录说明加入 `frontend/` 与新设计文档;
-  - `trainer/` 描述去掉"进程内 UI";
-  - 热键/使用流程补充外置前端启动步骤;
-- `docs/architecture-frontend.md`:
-  - 删除/更新"当前主推进程内 UI(B1)"的说明,改为正式外置前端;
-- `docs/architecture-inprocess-ui.md`:
-  - 标注"历史/过渡方案"或移动到 `docs/legacy/`,保留作设计记录;
-- `trainer.cpp` 文件头注释:
-  - 删除"进程内 UI(B1)"条目,改为"外置前端通过命名管道连接"。
-
-### 12.5 不要误删的部分
-
-- `HotkeyName`:仍被管道 `list` 和日志使用;
-- `g_ipcCs`、命令队列/事件队列:管道服务依赖;
-- `Worker`、`ProcessIpcCommands`:热键/命令/作弊执行核心;
-- `MessageBoxA` 及 `user32`:Worker 的 Mono 初始化失败提示仍需要;
-- `gdi32`:仅在确认没有其他 GDI 调用后移除。
+- 独立 UI 相关符号（`UiWndProc`、`UiBuildControls`、`UiThreadEntry`、`g_uiCtrl/g_uiMap/g_uiCount`、`UI_*` 常量）随 B1 窗口一并删除；`DllMain` 不再创建 UI 线程或保存 `g_hSelf`；
+- `TrainerApi_GetSnapshot` / `TrainerApi_Set` / `TrainerApi_Act` 与 `trainer_api.h` 已删除；外置前端只通过管道 `list/set/act`；
+- 确认保留：`HotkeyName`（管道 `list` 与日志使用）、`g_ipcCs` 与命令/事件队列、`Worker`/`ProcessIpcCommands`（作弊执行核心）、`MessageBoxA`（Mono 初始化失败提示）；
+- 文档同步：`docs/phase3-build.md` 去掉 `gdi32`；根 `README.md` 加入 `frontend/` 说明；`docs/architecture-inprocess-ui.md` 标注为历史方案。
 
 ---
 

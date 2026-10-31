@@ -1,59 +1,12 @@
 // ui.cpp —— 布局计算、命中测试与 GDI 自绘
 #include "ui.h"
 
+#include "ui_common.h"
+
 #include <algorithm>
 #include <string>
 
 namespace {
-
-constexpr COLORREF kBg      = RGB(20, 22, 28);
-constexpr COLORREF kPanel   = RGB(31, 35, 44);
-constexpr COLORREF kPanel2  = RGB(40, 45, 57);
-constexpr COLORREF kBorder  = RGB(65, 73, 90);
-constexpr COLORREF kText    = RGB(232, 230, 222);
-constexpr COLORREF kMuted   = RGB(140, 149, 166);
-constexpr COLORREF kAccent  = RGB(242, 184, 75);
-constexpr COLORREF kGreen   = RGB(111, 207, 151);
-constexpr COLORREF kRed     = RGB(235, 87, 87);
-constexpr COLORREF kDim     = RGB(52, 57, 69);
-
-int Scale(int dpi) {
-    // 只做整数倍缩放；布局/绘制坐标全部是物理像素，避免 GDI 半像素抗锯齿。
-    if (dpi >= 240) return 3;
-    if (dpi >= 144) return 2;
-    return 1;
-}
-
-void Fill(HDC dc, const RECT& rc, COLORREF color) {
-    HBRUSH brush = CreateSolidBrush(color);
-    FillRect(dc, &rc, brush);
-    DeleteObject(brush);
-}
-
-void Frame(HDC dc, const RECT& rc, COLORREF color, int thickness = 1) {
-    HBRUSH brush = CreateSolidBrush(color);
-    for (int i = 0; i < thickness; ++i) {
-        RECT r{rc.left + i, rc.top + i, rc.right - i, rc.bottom - i};
-        FrameRect(dc, &r, brush);
-    }
-    DeleteObject(brush);
-}
-
-void Text(HDC dc, HFONT font, COLORREF color, const RECT& rc,
-          const std::wstring& text, UINT flags) {
-    if (!font || text.empty()) return;
-    HFONT old = static_cast<HFONT>(SelectObject(dc, font));
-    SetBkMode(dc, TRANSPARENT);
-    SetTextColor(dc, color);
-    RECT r = rc;
-    DrawTextW(dc, text.c_str(), -1, &r, flags | DT_SINGLELINE | DT_NOPREFIX);
-    SelectObject(dc, old);
-}
-
-void TextIn(HDC dc, HFONT font, COLORREF color, const RECT& rc,
-            const std::wstring& text, UINT flags = DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS) {
-    Text(dc, font, color, rc, text, flags);
-}
 
 int RowFromHover(int hit) {
     return HitRow(hit);
