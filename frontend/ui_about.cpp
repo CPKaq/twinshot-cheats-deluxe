@@ -18,6 +18,7 @@ std::vector<AboutBlock> AboutContent() {
         out.push_back(std::move(b));
     };
 
+    add(AboutMuted, L"版本 1.0.0");
     add(AboutHeading, L"开　　发");
     add(AboutText, L"CPK @ Nitrome 吧攻略组");
     add(AboutHeading, L"共同开发");
@@ -25,7 +26,6 @@ std::vector<AboutBlock> AboutContent() {
     add(AboutHeading, L"字体资源");
     add(AboutMuted, L"Zpix - SolidZORO");
     add(AboutMuted, L"FFF Neostandard Bold - Fonts For Flash");
-    add(AboutMuted, L"IPix - Sadi");
     return out;
 }
 
@@ -98,7 +98,7 @@ void PaintAbout(HDC dc, const AboutLayout& l, HFONT font, HFONT titleFont,
 
     Fill(dc, l.client, kBg);
 
-    // 头部标题区（可拖动）：单行主标题（IPix）与右上角 × 同高度
+    // 头部标题区（可拖动）：单行主标题（MyFontHeading）与右上角 × 同高度
     Fill(dc, l.header, kPanel);
     Fill(dc, RECT{l.header.left, l.header.bottom - 2 * s, l.header.right, l.header.bottom},
          kBorder);

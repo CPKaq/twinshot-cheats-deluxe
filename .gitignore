@@ -2,6 +2,7 @@
 *.ttf
 *.otf
 *.res
+assets/
 
 # Prerequisites
 *.d

@@ -535,8 +535,8 @@ static void Coins_Action(Cheat& c) {
 // ---- 作弊注册表:新作弊先写 locate/apply/revert(/tick),再在这里加一行 ----------
 // id 是前端管道协议的稳定标识(docs/architecture-frontend.md),ASCII 小写。
 static Cheat kCheats[] = {
-    { "lock",  "锁血",     VK_F4, true,  Lock_Locate, Lock_Apply, Lock_Revert, Lock_Tick, &g_lock },
     { "god",   "无伤",     VK_F3, true,  God_Locate, God_Apply, God_Revert, nullptr, &g_god },
+    { "lock",  "锁血",     VK_F4, true,  Lock_Locate, Lock_Apply, Lock_Revert, Lock_Tick, &g_lock },
     { "coins", "增加金币", VK_F5, false, Coins_Locate, nullptr, nullptr, nullptr, &g_coins, Coins_Action },
 };
 static const size_t kCheatsCount = sizeof(kCheats) / sizeof(kCheats[0]);

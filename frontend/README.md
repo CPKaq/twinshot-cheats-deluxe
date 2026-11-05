@@ -46,27 +46,28 @@ g++ -std=c++17 -O2 -Wall -Wextra -Wno-cast-function-type -mwindows -DUNICODE -D_
 
 ## 字体资源
 
-当前 `frontend/assets` 中的三份字体（均为精简子集，完整原始字体见 `zpix_raw.ttf`）已通过 `frontend.rc` 嵌入 exe：
+当前 `frontend/assets` 中的三份字体（均为按需嵌入，完整原始 Zpix 见 `zpix_raw.ttf`）已通过 `frontend.rc` 嵌入 exe：
 
 ```rc
 #include "resource.h"
 
 IDR_FONT_ZPIX RCDATA "assets/zpix.ttf"
 IDR_FONT_FFF RCDATA "assets/FFF Neostandard Bold Regular.ttf"
-IDR_FONT_IPIX RCDATA "assets/ipix.ttf"
+IDR_FONT_HEADING RCDATA "assets/MyFontHeading.ttf"
 
 1 24 "frontend.manifest"
 ```
 
 `app.cpp` 启动时用 `AddFontMemResourceEx` 私有加载：
 
-- `zpix.ttf` → 字体族 `Zpix`，用于 12px 正文/小字（精简子集，约 12KB）；
+- `zpix.ttf` → 字体族 `Zpix`，用于 12px 正文/小字（子集约 37KB，字符集见 `assets/zpix-charset.txt`）；
 - `FFF Neostandard Bold Regular.ttf` → 字体族 `FFF Neostandard Bold`，按 8px 设计，用于主面板 16px 标题/大字（约 23KB）；
-- `ipix.ttf` → 字体族 `IPix`，原生 16px 中文，仅用于“关于”页大标题（精简子集，约 1.3KB）；FFF 不含中文字形，标题中文由它补上；
+- `MyFontHeading.ttf` → 字体族 `MyFontHeading`，原生 16px，仅用于“关于”页大标题（约 6KB，目前专含“关于”二字）；FFF 不含中文字形，标题中文由它负责；
+- `MyFontIcon.ttf` → 字体族 `MyFontIcon`，作弊行图标字符 `U+E001`(god/无伤)、`U+E002`(lock/锁血)、`U+E003`(coins/增加金币)，未注册的 id 不绘制图标；
 - `CreateFontW` 使用负像素高度、`NONANTIALIASED_QUALITY`，只按 1x/2x/3x 整数缩放；
-- 加载失败时回退到 `Microsoft YaHei UI`，并用 ClearType 保证可读性；“关于”标题的 IPix 加载失败时回退到主面板标题字体。
+- 加载失败时回退到 `Microsoft YaHei UI`，并用 ClearType 保证可读性；“关于”标题的 MyFontHeading 加载失败时回退到主面板标题字体。
 
-> 字体是按字符子集化的：新增 UI 文案或修改“关于”标题文字时，需要重新子集化把新字符加入 `zpix.ttf` / `ipix.ttf`（方法见 `assets/README.md`）。当前 exe 约 840KB。
+> 字体是按字符子集化的：新增 UI 文案或修改“关于”标题文字后重跑 `python frontend\assets\subset_zpix.py`（自动从源码 UI 字符串与作弊名收集字符并重建 `zpix.ttf`；MyFontHeading/MyFontIcon 需在设计端补字形）即可，当前 exe 约 895KB。
 
 ## 运行
 

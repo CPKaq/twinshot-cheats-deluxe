@@ -6,4 +6,4 @@
 Layout ComputeLayout(int dpi, int cheatCount);
 int HitTestUi(const Layout& layout, int x, int y);
 void PaintUi(HDC dc, const AppState& state, const Layout& layout,
-             HFONT font, HFONT titleFont, HFONT smallFont);
+             HFONT font, HFONT titleFont, HFONT smallFont, HFONT iconFont);

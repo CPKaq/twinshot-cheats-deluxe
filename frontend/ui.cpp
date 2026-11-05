@@ -12,6 +12,14 @@ int RowFromHover(int hit) {
     return HitRow(hit);
 }
 
+// 作弊 id → 图标字符（MyFontIcon 私用区）；未知 id 无图标
+wchar_t IconForId(const std::string& id) {
+    if (id == "god") return L'\uE001';   // 无伤
+    if (id == "lock") return L'\uE002';  // 锁血
+    if (id == "coins") return L'\uE003'; // 增加金币
+    return L'\0';
+}
+
 } // namespace
 
 Layout ComputeLayout(int dpi, int cheatCount) {
@@ -41,7 +49,9 @@ Layout ComputeLayout(int dpi, int cheatCount) {
         for (int i = 0; i < cheatCount; ++i) {
             RowLayout row;
             row.row = {m, listTop + i * rowH, l.width - m, listTop + (i + 1) * rowH};
-            row.name = {row.row.left + 10 * s, row.row.top,
+            // 名称前预留 16px 图标位（MyFontIcon PUA 字符），无图标时留空
+            row.icon = {row.row.left + 8 * s, row.row.top, row.row.left + 24 * s, row.row.bottom};
+            row.name = {row.icon.right + 6 * s, row.row.top,
                         row.row.right - 158 * s, row.row.bottom};
             row.hotkey = {row.row.right - 152 * s, row.row.top + 8 * s,
                           row.row.right - 108 * s, row.row.bottom - 8 * s};
@@ -102,7 +112,7 @@ int HitTestUi(const Layout& l, int x, int y) {
 }
 
 void PaintUi(HDC dc, const AppState& st, const Layout& l,
-             HFONT font, HFONT titleFont, HFONT smallFont) {
+             HFONT font, HFONT titleFont, HFONT smallFont, HFONT iconFont) {
     const int s = l.scale;
     Fill(dc, l.client, kBg);
 
@@ -196,6 +206,12 @@ void PaintUi(HDC dc, const AppState& st, const Layout& l,
 
             const bool enabled = connected && c.ready && !c.pending;
             const COLORREF nameColor = enabled || st.demo ? kText : kMuted;
+
+            const wchar_t icon = IconForId(c.id);
+            if (icon && iconFont) {
+                TextIn(dc, iconFont, nameColor, r.icon,
+                       std::wstring(1, icon), DT_CENTER | DT_VCENTER);
+            }
             TextIn(dc, font, nameColor,
                    RECT{r.name.left, r.name.top, r.name.right, r.name.bottom},
                    c.name);

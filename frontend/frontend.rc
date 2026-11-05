@@ -2,6 +2,7 @@
 
 IDR_FONT_ZPIX RCDATA "assets/zpix.ttf"
 IDR_FONT_FFF RCDATA "assets/FFF Neostandard Bold Regular.ttf"
-IDR_FONT_IPIX RCDATA "assets/ipix.ttf"
+IDR_FONT_HEADING RCDATA "assets/MyFontHeading.ttf"
+IDR_FONT_ICON RCDATA "assets/MyFontIcon.ttf"
 
 1 24 "frontend.manifest"

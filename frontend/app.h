@@ -98,6 +98,7 @@ struct RowLayout {
     RECT name{};
     RECT hotkey{};
     RECT control{};
+    RECT icon{};   // 名称前图标字符位（MyFontIcon/PUA；该项无图标时留空矩形）
 };
 
 struct Layout {
@@ -217,11 +218,13 @@ private:
     HFONT font_ = nullptr;
     HFONT titleFont_ = nullptr;
     HFONT smallFont_ = nullptr;
-    HFONT aboutTitleFont_ = nullptr;   // “关于”页大标题（IPix，原生 16px 支持中文）
-    HANDLE fontMem_[3] = {nullptr, nullptr, nullptr};
+    HFONT aboutTitleFont_ = nullptr;   // “关于”页大标题（MyFontHeading，原生 16px 中文）
+    HFONT iconFont_ = nullptr;         // 作弊行图标（MyFontIcon，PUA U+E001-E003）
+    HANDLE fontMem_[4] = {nullptr, nullptr, nullptr, nullptr};
     bool fontBodyLoaded_ = false;
     bool fontTitleLoaded_ = false;
     bool fontAboutTitleLoaded_ = false;
+    bool fontIconLoaded_ = false;
 
     bool dragging_ = false;
     POINT dragCursor_{};
