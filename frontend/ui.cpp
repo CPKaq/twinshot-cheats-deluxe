@@ -264,7 +264,7 @@ void PaintUi(HDC dc, const AppState& st, const Layout& l,
     }
 
     // 动作数值
-    TextIn(dc, font, kMuted, l.amountLabel, L"金币数量",
+    TextIn(dc, font, kMuted, l.amountLabel, L"增加数量",
            DT_LEFT | DT_VCENTER | DT_SINGLELINE);
     Fill(dc, RECT{l.amountBox.left + 1, l.amountBox.top + 1,
                   l.amountBox.right - 1, l.amountBox.bottom - 1}, kPanel2);
