@@ -39,7 +39,7 @@ struct AboutLayout {
 
 AboutLayout ComputeAboutLayout(int dpi);
 int HitTestAbout(const AboutLayout& layout, int x, int y);
-// titleFont 为“关于”页大标题字体（MyFontHeading / 加载失败时回退到主面板标题字体）
+// titleFont 为标题字体（MyFontHeading，主面板与“关于”共用 / 加载失败时回退系统字体）
 void PaintAbout(HDC dc, const AboutLayout& layout,
                 HFONT font, HFONT titleFont, HFONT smallFont,
                 int hover, int pressed);

@@ -216,14 +216,12 @@ private:
     RECT aboutDragWindow_{};
 
     HFONT font_ = nullptr;
-    HFONT titleFont_ = nullptr;
+    HFONT titleFont_ = nullptr;        // 标题（MyFontHeading，原生 16px，主面板与“关于”共用）
     HFONT smallFont_ = nullptr;
-    HFONT aboutTitleFont_ = nullptr;   // “关于”页大标题（MyFontHeading，原生 16px 中文）
     HFONT iconFont_ = nullptr;         // 作弊行图标（MyFontIcon，PUA U+E001-E003）
-    HANDLE fontMem_[4] = {nullptr, nullptr, nullptr, nullptr};
+    HANDLE fontMem_[3] = {nullptr, nullptr, nullptr};
     bool fontBodyLoaded_ = false;
     bool fontTitleLoaded_ = false;
-    bool fontAboutTitleLoaded_ = false;
     bool fontIconLoaded_ = false;
 
     bool dragging_ = false;

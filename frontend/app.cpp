@@ -214,7 +214,6 @@ App::~App() {
     if (font_) DeleteObject(font_);
     if (titleFont_) DeleteObject(titleFont_);
     if (smallFont_) DeleteObject(smallFont_);
-    if (aboutTitleFont_) DeleteObject(aboutTitleFont_);
     if (iconFont_) DeleteObject(iconFont_);
     UnloadFonts();
 }
@@ -815,7 +814,7 @@ void App::OnAboutPaint() {
     FillRect(mem, &rc, bg);
     DeleteObject(bg);
 
-    PaintAbout(mem, aboutLayout_, font_, aboutTitleFont_, smallFont_,
+    PaintAbout(mem, aboutLayout_, font_, titleFont_, smallFont_,
                aboutHover_, aboutPressed_);
     BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
 
@@ -1314,25 +1313,21 @@ void App::UpdateFonts() {
     if (font_) DeleteObject(font_);
     if (titleFont_) DeleteObject(titleFont_);
     if (smallFont_) DeleteObject(smallFont_);
-    if (aboutTitleFont_) DeleteObject(aboutTitleFont_);
     if (iconFont_) DeleteObject(iconFont_);
     font_ = nullptr;
     titleFont_ = nullptr;
     smallFont_ = nullptr;
-    aboutTitleFont_ = nullptr;
     iconFont_ = nullptr;
 
     const int scale = PixelScale(state_.dpi);
-    const int bodyPx = 12 * scale;   // Zpix 原生 12px
-    const int titlePx = 16 * scale;  // FFF 8px 设计（主面板）/ MyFontHeading 原生 16px（“关于”标题）
-    const int iconPx = 12 * scale;   // 图标与 Zpix 正文等高
+    const int bodyPx = 12 * scale;   // Fusion Pixel 原生 12px
+    const int titlePx = 16 * scale;  // MyFontHeading 原生 16px（主面板 / “关于”标题共用）
+    const int iconPx = 12 * scale;   // MyFontIcon 字面与正文字网格一致（1100/1200 em）
 
-    const wchar_t* bodyFace = fontBodyLoaded_ ? L"Zpix" : L"Microsoft YaHei UI";
-    const wchar_t* titleFace = fontTitleLoaded_ ? L"FFF Neostandard Bold" : L"Microsoft YaHei UI";
-    const wchar_t* aboutFace = fontAboutTitleLoaded_ ? L"MyFontHeading" : titleFace;
+    const wchar_t* bodyFace = fontBodyLoaded_ ? L"Fusion Pixel 12px Prop zh-Hans" : L"Microsoft YaHei UI";
+    const wchar_t* titleFace = fontTitleLoaded_ ? L"MyFontHeading" : L"Microsoft YaHei UI";
     const UINT bodyQuality = fontBodyLoaded_ ? NONANTIALIASED_QUALITY : CLEARTYPE_QUALITY;
     const UINT titleQuality = fontTitleLoaded_ ? NONANTIALIASED_QUALITY : CLEARTYPE_QUALITY;
-    const UINT aboutQuality = fontAboutTitleLoaded_ ? NONANTIALIASED_QUALITY : titleQuality;
 
     auto make = [&](int px, int weight, const wchar_t* face, UINT quality) {
         return CreateFontW(-px, 0, 0, 0, weight, FALSE, FALSE, FALSE,
@@ -1342,7 +1337,6 @@ void App::UpdateFonts() {
     font_ = make(bodyPx, FW_NORMAL, bodyFace, bodyQuality);
     smallFont_ = make(bodyPx, FW_NORMAL, bodyFace, bodyQuality);
     titleFont_ = make(titlePx, FW_NORMAL, titleFace, titleQuality);
-    aboutTitleFont_ = make(titlePx, FW_NORMAL, aboutFace, aboutQuality);
     // 图标字体加载失败时保持 nullptr，绘制端跳过图标（不留 .notdef 方框）
     if (fontIconLoaded_) {
         iconFont_ = make(iconPx, FW_NORMAL, L"MyFontIcon", NONANTIALIASED_QUALITY);
@@ -1358,11 +1352,10 @@ void App::LoadFonts() {
         HANDLE* handle;
         bool* loaded;
     };
-    Item items[4] = {
-        {IDR_FONT_ZPIX, L"Zpix", &fontMem_[0], &fontBodyLoaded_},
-        {IDR_FONT_FFF, L"FFF Neostandard Bold", &fontMem_[1], &fontTitleLoaded_},
-        {IDR_FONT_HEADING, L"MyFontHeading", &fontMem_[2], &fontAboutTitleLoaded_},
-        {IDR_FONT_ICON, L"MyFontIcon", &fontMem_[3], &fontIconLoaded_},
+    Item items[3] = {
+        {IDR_FONT_BODY, L"Fusion Pixel 12px Prop zh-Hans", &fontMem_[0], &fontBodyLoaded_},
+        {IDR_FONT_TITLE, L"MyFontHeading", &fontMem_[1], &fontTitleLoaded_},
+        {IDR_FONT_ICON, L"MyFontIcon", &fontMem_[2], &fontIconLoaded_},
     };
 
     for (auto& item : items) {
@@ -1401,7 +1394,6 @@ void App::UnloadFonts() {
     }
     fontBodyLoaded_ = false;
     fontTitleLoaded_ = false;
-    fontAboutTitleLoaded_ = false;
     fontIconLoaded_ = false;
 }
 

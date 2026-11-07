@@ -1,8 +1,7 @@
 #include "resource.h"
 
-IDR_FONT_ZPIX RCDATA "assets/zpix.ttf"
-IDR_FONT_FFF RCDATA "assets/FFF Neostandard Bold Regular.ttf"
-IDR_FONT_HEADING RCDATA "assets/MyFontHeading.ttf"
+IDR_FONT_BODY RCDATA "assets/fusion-pixel-12px-subset.ttf"
+IDR_FONT_TITLE RCDATA "assets/MyFontHeading.ttf"
 IDR_FONT_ICON RCDATA "assets/MyFontIcon.ttf"
 
 1 24 "frontend.manifest"

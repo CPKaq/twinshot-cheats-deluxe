@@ -132,14 +132,14 @@ frontend.exe                              Twin Shot Deluxe.exe
 - 底部左侧显示 `Insert 隐藏 · 热键后台有效`;右侧为“关于”“退出”按钮;
 - 未连接时列表区域显示“等待 trainer 列表…”+“请先启动游戏，再点击下方‘注入’”+`[注入]`按钮;
 - 注入中按钮消失,文字显示“正在注入…（injector 最多等待约 60 秒）”;失败/取消 UAC 后按钮重新出现,文字说明原因;按钮文字始终为“注入”;
-- “关于”窗口为主面板同款的无边框像素窗口:头部为单行标题区（可拖动）,标题用 `MyFontHeading`（原生 16px 中文专用设计字体），右上角手绘像素 × 或 Esc 关闭;内容为占位文本(开发者列表和外部资源说明待补充),以数据块(`AboutBlock`,含预留图标槽位)组织,便于将来插入图标;
+- “关于”窗口为主面板同款的无边框像素窗口:头部为单行标题区（可拖动）,标题用主面板同款的 `MyFontHeading`（标题字体组件已合一）,右上角手绘像素 × 或 Esc 关闭;内容为数据块(`AboutBlock`),含开发者列表与字体致谢;
 - 连接状态、初始化中、游戏退出、管道断开、动作成败都要有明确文字,不只靠颜色。
 
 ### 4.3 像素化技术约束
 
-- **字体**:四份字体以 `RCDATA` 嵌入 exe,`AddFontMemResourceEx` 私有加载,失败回退系统字体;`zpix.ttf`（字体族 `Zpix`，12px 正文/小字，子集约 37KB）、`FFF Neostandard Bold Regular.ttf`（字体族 `FFF Neostandard Bold`，8px 设计，按 16px 用于主面板标题/大字，约 23KB）、`MyFontHeading.ttf`（字体族 `MyFontHeading`，原生 16px 中文，仅用于“关于”页大标题，约 6KB，专含“关于”二字）、`MyFontIcon.ttf`（字体族 `MyFontIcon`，按 22px 渲染的图标字符 `U+E001-E003`，仅在 `MyFontIcon` 加载成功时绘制）;完整原始 Zpix 保留在 `frontend/assets/zpix_raw.ttf` 供重新子集化（一键脚本 `python frontend/assets/subset_zpix.py`，字符集版本化于 `zpix-charset.txt`）;已移除的 `Zfull-GB.ttf` 不再引用;
+- **字体**:三份字体以 `RCDATA` 嵌入 exe,`AddFontMemResourceEx` 私有加载,失败回退系统字体;`fusion-pixel-12px-subset.ttf`（字体族 `Fusion Pixel 12px Prop zh-Hans`，12px 正文/小字，字符子集约 41KB，SIL OFL 1.1 见 `frontend/assets/LICENSE-OFL.txt`）、`MyFontHeading.ttf`（字体族 `MyFontHeading`，原生 16px，主面板与“关于”标题共用，自制）、`MyFontIcon.ttf`（字体族 `MyFontIcon`，按 12px 渲染的图标字符 `U+E001-E003`，仅在加载成功时绘制，自制）;完整原始 Fusion Pixel 保留在 `frontend/assets/fusion-pixel-12px-proportional-zh_hans.ttf` 供重新子集化（一键脚本 `python frontend/assets/subset_fonts.py`，字符集版本化于 `fusion-charset.txt`）;
 - **字号**:只用字体原生像素尺寸或整数倍;`CreateFontW` 使用负高度、`NONANTIALIASED_QUALITY`,关闭 ClearType;当前 1x/2x/3x 对应 12/24/36px 与 16/32/48px;
-- **精简**:`FFF` 只有约 23KB；`Zpix` 约 4.7MB，正式发布前可按 UI 文案和已知作弊名子集化，详见 `frontend/assets/README.md`;
+- **精简**:`fusion-pixel-12px-subset.ttf` 为按 UI 文案子集化后的精简版（约 41KB），新增文案后用 `python frontend/assets/subset_fonts.py` 重建，详见 `frontend/assets/README.md`;
 - **DPI**:manifest 声明 Per-Monitor V2;处理 `WM_DPICHANGED`;按设计稿定义的 1x/2x 级别缩放,不做小数倍拉伸;
 - **绘制**:GDI 双缓冲(`CreateCompatibleDC` + `CreateCompatibleBitmap` + `BitBlt`),`WM_ERASEBKGND` 返回 1 防闪烁;
 - **图标**:优先 16×16 / 24×24 的 32 位 BMP/ICO + `AlphaBlend`;PNG 需要 GDI+/WIC,非必要不引入;
@@ -484,7 +484,7 @@ build\
 ### 10.1 当前落地情况
 
 - [x] 骨架：Win32 窗口、静态布局、占位 GDI 绘制、`--demo`；
-- [x] 像素字体资源：官方 Zpix（12px）+ FFF Neostandard Bold（16px，8px 设计 2x）以 RCDATA 嵌入并私有加载；无边框窗口；
+- [x] 像素字体资源：Fusion Pixel 12px（OFL，正文字符子集）+ 自制 MyFontHeading（16px 标题）以 RCDATA 嵌入并私有加载；无边框窗口；
 - [x] 管道：连接/重连、`list/set/act`、`state/done`、状态栏、toast、pending 超时；
 - [x] 焦点：游戏窗口发现、显示激活、隐藏恢复、Insert 显隐、无边框标题拖动；Esc 仅取消数值编辑；
 - [x] 基础交互：开关、动作、金币数量、无边框拖动、关于/退出按钮、单实例；
@@ -492,7 +492,7 @@ build\
 - [x] “关于”窗口：主面板同款无边框像素窗口（占位内容已改为正式文案），×/Esc 关闭，主窗口隐藏时一起隐藏；主窗口默认位于主显示器左上角 (200,100)，“关于”偏移 (100,100)；
 - [x] 作弊行图标：名称前 16px 图标位，MyFontIcon PUA 字符（`U+E001/E002/E003` ↔ `god/lock/coins`）；`kCheats` 按 F3-F5 顺序排列；
 - [ ] 图标/九宫格/最终配色；
-- [ ] 字体子集字符覆盖维护（三份字体均为按需嵌入，exe 约 895KB；新增文案后重跑 `python frontend/assets/subset_zpix.py` 重建 `zpix.ttf`，`MyFontHeading`/`MyFontIcon` 需设计端补字形）；
+- [ ] 字体子集字符覆盖维护（三份字体均为按需嵌入，exe 约 856KB；新增文案后重跑 `python frontend/assets/subset_fonts.py` 重建 `fusion-pixel-12px-subset.ttf`，`MyFontHeading`/`MyFontIcon` 需设计端补字形；Fusion Pixel 分发须保留 `LICENSE-OFL.txt`）；
 - [ ] 托盘、滚动、完整无障碍；
 - [ ] 与真实游戏联调 §11 中的焦点/暂停/金币项。
 

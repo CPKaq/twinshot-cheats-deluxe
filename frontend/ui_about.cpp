@@ -23,9 +23,9 @@ std::vector<AboutBlock> AboutContent() {
     add(AboutText, L"CPK @ Nitrome 吧攻略组");
     add(AboutHeading, L"共同开发");
     add(AboutText, L"GLM  ·  DeepSeek");
-    add(AboutHeading, L"字体资源");
-    add(AboutMuted, L"Zpix - SolidZORO");
-    add(AboutMuted, L"FFF Neostandard Bold - Fonts For Flash");
+    add(AboutHeading, L"字体支持");
+    add(AboutMuted, L"Fusion Pixel 12px - TakWolf (OFL 1.1)");
+    add(AboutMuted, L"MyFontHeading / MyFontIcon 自制");
     return out;
 }
 

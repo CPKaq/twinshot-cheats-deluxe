@@ -2,7 +2,7 @@
 
 纯 C++ / Win32 / GDI 的独立控制窗口。它不注入游戏、不读取游戏内存、不调用 Mono，只通过命名管道 `\\.\pipe\twinshot-trainer` 与 `trainer.dll` 通信。
 
-当前是**架构与布局骨架 + 占位皮肤**：像素字体已接入（官方 Zpix + FFF Neostandard Bold），图标和九宫格素材仍待替换。视觉稿确定后，主要改 `ui.cpp` / `ui_about.cpp` 的绘制和 `frontend.rc` 资源。
+当前是**架构与布局骨架 + 占位皮肤**：像素字体已接入（Fusion Pixel 12px + 自制的 MyFontHeading / MyFontIcon），图标和九宫格素材仍待替换。视觉稿确定后，主要改 `ui.cpp` / `ui_about.cpp` 的绘制和 `frontend.rc` 资源。
 
 窗口为**无边框置顶窗口**：没有系统标题栏，拖动顶部标题区域可移动；Insert 隐藏/显示，面板底部“退出”按钮关闭程序。主窗口默认位于**主显示器左上角 (200,100)**，“关于”窗口在此基础**偏移 (100,100)**。“关于”窗口是**主面板同款的无边框像素窗口**：单行标题区可拖动，右上角手绘像素 ×（Esc 也可关闭），主窗口隐藏时一起隐藏；当前内容为占位文本（正式的开发者列表/外部资源说明及图标待补充）。
 
@@ -46,28 +46,27 @@ g++ -std=c++17 -O2 -Wall -Wextra -Wno-cast-function-type -mwindows -DUNICODE -D_
 
 ## 字体资源
 
-当前 `frontend/assets` 中的三份字体（均为按需嵌入，完整原始 Zpix 见 `zpix_raw.ttf`）已通过 `frontend.rc` 嵌入 exe：
+`frontend/assets` 中的三份字体已通过 `frontend.rc` 嵌入 exe（构建时使用的子集文件；开源分发相关许可见下）：
 
 ```rc
 #include "resource.h"
 
-IDR_FONT_ZPIX RCDATA "assets/zpix.ttf"
-IDR_FONT_FFF RCDATA "assets/FFF Neostandard Bold Regular.ttf"
-IDR_FONT_HEADING RCDATA "assets/MyFontHeading.ttf"
+IDR_FONT_BODY RCDATA "assets/fusion-pixel-12px-subset.ttf"
+IDR_FONT_TITLE RCDATA "assets/MyFontHeading.ttf"
+IDR_FONT_ICON RCDATA "assets/MyFontIcon.ttf"
 
 1 24 "frontend.manifest"
 ```
 
 `app.cpp` 启动时用 `AddFontMemResourceEx` 私有加载：
 
-- `zpix.ttf` → 字体族 `Zpix`，用于 12px 正文/小字（子集约 37KB，字符集见 `assets/zpix-charset.txt`）；
-- `FFF Neostandard Bold Regular.ttf` → 字体族 `FFF Neostandard Bold`，按 8px 设计，用于主面板 16px 标题/大字（约 23KB）；
-- `MyFontHeading.ttf` → 字体族 `MyFontHeading`，原生 16px，仅用于“关于”页大标题（约 6KB，目前专含“关于”二字）；FFF 不含中文字形，标题中文由它负责；
+- `fusion-pixel-12px-subset.ttf` → 字体族 `Fusion Pixel 12px Prop zh-Hans`（TakWolf 的 Fusion Pixel 字体，SIL OFL 1.1，许可见 `assets/LICENSE-OFL.txt`），用于 12px 正文/小字（字符子集约 41KB，字符集见 `assets/fusion-charset.txt`）；
+- `MyFontHeading.ttf` → 字体族 `MyFontHeading`，原生 16px，主面板标题（"Twin Shot Cheats Deluxe"）与“关于”页大标题共用（标题组件合一，不再分两套）；
 - `MyFontIcon.ttf` → 字体族 `MyFontIcon`，作弊行图标字符 `U+E001`(god/无伤)、`U+E002`(lock/锁血)、`U+E003`(coins/增加金币)，未注册的 id 不绘制图标；
 - `CreateFontW` 使用负像素高度、`NONANTIALIASED_QUALITY`，只按 1x/2x/3x 整数缩放；
-- 加载失败时回退到 `Microsoft YaHei UI`，并用 ClearType 保证可读性；“关于”标题的 MyFontHeading 加载失败时回退到主面板标题字体。
+- 任一字体加载失败时回退到 `Microsoft YaHei UI`，并用 ClearType 保证可读性（图标字体失败则不绘制图标）。
 
-> 字体是按字符子集化的：新增 UI 文案或修改“关于”标题文字后重跑 `python frontend\assets\subset_zpix.py`（自动从源码 UI 字符串与作弊名收集字符并重建 `zpix.ttf`；MyFontHeading/MyFontIcon 需在设计端补字形）即可，当前 exe 约 895KB。
+> 字体是按字符子集化的：新增 UI 文案或修改标题文字后重跑 `python frontend\assets\subset_fonts.py`（自动从源码 UI 字符串与作弊名收集字符并重建 `fusion-pixel-12px-subset.ttf`；MyFontHeading/MyFontIcon 需在设计端补字形）即可，当前 exe 约 856KB。
 
 ## 运行
 
