@@ -18,14 +18,16 @@ std::vector<AboutBlock> AboutContent() {
         out.push_back(std::move(b));
     };
 
-    add(AboutMuted, L"版本 1.0.0");
+    add(AboutMuted, L"版本 1.0.0　　　　以 GNU GPLv3 许可证开放源代码");
+    add(AboutMuted, L"https://github.com/CPKaq/twinshot-cheats-deluxe");
     add(AboutHeading, L"开　　发");
     add(AboutText, L"CPK @ Nitrome 吧攻略组");
     add(AboutHeading, L"共同开发");
     add(AboutText, L"GLM  ·  DeepSeek");
     add(AboutHeading, L"字体支持");
-    add(AboutMuted, L"Fusion Pixel 12px - TakWolf (OFL 1.1)");
-    add(AboutMuted, L"MyFontHeading / MyFontIcon 自制");
+    add(AboutText, L"Fusion Pixel - TakWolf (OFL 1.1)");
+    add(AboutHeading, L"特别感谢");
+    add(AboutText, L"Nitrome");
     return out;
 }
 
